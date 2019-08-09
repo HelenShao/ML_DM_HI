@@ -97,11 +97,9 @@ for i in range(100):
 
 DM_matrix_test = torch.tensor(DM_matrix_test, dtype=torch.float)
 HI_matrix_test = torch.tensor(HI_matrix_test, dtype=torch.float)
-    
-print(DM_matrix_test.shape)
-print(HI_matrix_test.shape)
+   
 
-=== Model: Fully Connected - NN ===
+# ============ Making the Model =============
 
 # Create Model Container: 3 fully connected layers (linear)
 Model = nn.Sequential()
@@ -123,7 +121,7 @@ Model.add_module('Relu2', Relu2)
 Model.add_module('fc3', fc3)
 Model.add_module('Relu3', Relu3)
 
-=== Train Model ===
+# ======== Train Model =========
 
 criterion = nn.MSELoss()       #Loss Function           
 optimizer = torch.optim.Adam(Model.parameters(), lr = learning_rate)
@@ -170,7 +168,7 @@ for epoch in range(num_epochs):
     Loss_total[epoch] = partial_loss    
     print('Epoch:', epoch, 'Loss: ', Loss_total[epoch], '    Valid_Error:', loss_valid[epoch])
     
-==== Evaluate ====
+# ==== Evaluate ====
 # Plot loss as a function of epochs
 epochs = np.arange(500)
 
@@ -183,7 +181,7 @@ plt.yscale('log')
 plt.legend()
 plt.show()
 
-==== Test Model ====
+# ==== Test Model ====
 # Plot images of neutral hydrogen prediction vs true image
 plt.subplot(821)
 plt.imshow(HI_matrix_test[1].reshape((32,32)))
