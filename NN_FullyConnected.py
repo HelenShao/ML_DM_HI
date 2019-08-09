@@ -152,6 +152,11 @@ for epoch in range(num_epochs):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+        
+        #Update Learning Rate: after 250 epochs load the best model and decrease the learning rate
+        if epoch==250:
+            Model.load_state_dict(torch.load('BestModelDM_HI.pt'))
+            optimizer = torch.optim.Adam(Model.parameters(), lr=0.001/2.0)
     
     for i, (DM_matrix_valid, HI_matrix_valid) in enumerate(validation_loader):
         Model.eval()  #Set model into eval mode to stop back prop
