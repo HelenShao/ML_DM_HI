@@ -125,6 +125,11 @@ Model.add_module('Relu3', Relu3)
 criterion = nn.MSELoss()       #Loss Function           
 optimizer = torch.optim.Adam(Model.parameters(), lr = learning_rate)
 
+#Train the Model
+
+criterion = nn.MSELoss()       #Loss Function           
+optimizer = torch.optim.Adam(Model.parameters(), lr = learning_rate)
+
 ##### Training Loop #####
 
 Loss_total = np.zeros(3000) # Record loss for plotting
@@ -132,65 +137,72 @@ loss_valid = np.zeros(3000)  #Record Validation loss for saving
 best_model = 9e7
 
 # load best-model
-if os.path.exists('BestModelDM_HI_New.pt'):
-    Model.load_state_dict(torch.load('BestModelDM_HI_New.pt'))
+if os.path.exists('BestModelDM_HI_New_2.pt'):
+    Model.load_state_dict(torch.load('BestModelDM_HI_New_2.pt'))
 
 for epoch in range(num_epochs):
     partial_loss = 0.0
     partial_loss_valid = 0.0
+    count = 0
+    
+    #### Decrease Loss ####
+    # after 250 epochs load the best model and decrease the learning rate
+    if epoch==250:
+        Model.load_state_dict(torch.load('BestModelDM_HI_New_2.pt'))
+        optimizer = torch.optim.Adam(Model.parameters(), lr=learning_rate/2)
+        
+        # after 500 epochs load the best model and decrease the learning rate
+    if epoch==500:
+        Model.load_state_dict(torch.load('BestModelDM_HI_New_2.pt'))
+        optimizer = torch.optim.Adam(Model.parameters(), lr=learning_rate/5)
+            
+        # After 1000 epochs, load the best model and decrease the learning rate
+    if epoch==1000:
+        Model.load_state_dict(torch.load('BestModelDM_HI_New_2.pt'))
+        optimizer = torch.optim.Adam(Model.parameters(), lr=learning_rate/10)
+            
+        # After 1250 epochs, load the best model and decrease the learning rate
+    if epoch==1250:
+        Model.load_state_dict(torch.load('BestModelDM_HI_New_2.pt'))
+        optimizer = torch.optim.Adam(Model.parameters(), lr=learning_rate/15)
+            
     for i, (DM_matrix_train, HI_matrix_train) in enumerate(train_loader):
-      
         #Forward Pass
         Model.train()
         HI_pred = Model(DM_matrix_train)
         
         loss = criterion(HI_pred, HI_matrix_train)   #Loss  for train set
-        Loss_total[epoch] = loss.detach().numpy()
+        #Loss_total[epoch] = loss.detach().numpy()
         partial_loss += loss.detach().numpy()
-        partial_loss = partial_loss / batch_size
         
         #Backward Prop
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         
-        # after 250 epochs load the best model and decrease the learning rate
-        if epoch==250:
-            Model.load_state_dict(torch.load('BestModelDM_HI_New.pt'))
-            optimizer = torch.optim.Adam(Model.parameters(), lr=learning_rate/2)
-            
-        # after 500 epochs load the best model and decrease the learning rate
-        if epoch==500:
-            Model.load_state_dict(torch.load('BestModelDM_HI_New.pt'))
-            optimizer = torch.optim.Adam(Model.parameters(), lr=learning_rate/5)
-            
-        # after 1000 epochs load the best model and decrease the learning rate
-        if epoch==1000:
-            Model.load_state_dict(torch.load('BestModelDM_HI_New.pt'))
-            optimizer = torch.optim.Adam(Model.parameters(), lr=learning_rate/10)
-            
-        # after 1250 epochs load the best model and decrease the learning rate
-        if epoch==1250:
-            Model.load_state_dict(torch.load('BestModelDM_HI_New.pt'))
-            optimizer = torch.optim.Adam(Model.parameters(), lr=learning_rate/15)
-            
-            
+        count += 1
+    partial_loss = partial_loss/count  #Divide partial_loss by number of iterations
+       
+    #Validation Set
+    count2 = 0
     for i, (DM_matrix_valid, HI_matrix_valid) in enumerate(validation_loader):
         Model.eval()  #Set model into eval mode to stop back prop
         HI_validation = Model(DM_matrix_valid)
         error_valid = criterion(HI_validation, HI_matrix_valid)   #Loss for validation set
         partial_loss_valid += error_valid
-        partial_loss_valid = partial_loss_valid / batch_size
+        count += 1
         
+    partial_loss_valid = partial_loss_valid / count2
+    
     #Save Best Model 
     if loss_valid[epoch]<best_model:
         best_model = loss_valid[epoch]
-        torch.save(Model.state_dict(), 'BestModelDM_HI_New.pt')
+        torch.save(Model.state_dict(), 'BestModelDM_HI_New_2.pt')
 
     #Print loss for both training and validation sets
     Loss_total[epoch] = partial_loss  
     loss_valid[epoch] = partial_loss_valid
-    print('Epoch:', epoch, 'Loss: ', Loss_total[epoch], '    Valid_Error:', loss_valid[epoch])
+    print('Epoch:', epoch, 'Loss: ', Loss_total[epoch], ' Valid_Error:', loss_valid[epoch])
     
 
 torch.save(Model.state_dict(), 'BestModelDM_HI_New.pt')
