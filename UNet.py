@@ -294,3 +294,64 @@ plt.xscale('log')
 plt.yscale('log')
 plt.legend()
 plt.show()
+
+# Test the model
+if os.path.exists('BestModelDM_HI_CNN_Unet.pt'):
+    model.load_state_dict(torch.load('BestModelDM_HI_UNet.pt'))
+
+loss_test = np.zeros(500)
+for epoch in range(num_epochs):
+    partial_loss_test = 0.0
+    
+    for i, (DM_matrix_test_new, HI_matrix_test_new) in enumerate(test_loader):
+        model.eval()  #Set model into eval mode to stop back prop
+        
+        DM_matrix_test_new= DM_matrix_test_new.unsqueeze(1)
+        HI_matrix_test_new.squeeze_()
+        
+        HI_test = model(DM_matrix_test_new)
+        error_test = criterion(HI_test, HI_matrix_test_new)   #Loss for validation set
+        partial_loss_test += error_test
+    partial_loss_test = partial_loss_test / batch_size
+        
+    #Print loss for test set
+    loss_test[epoch] = partial_loss_test 
+    print('Epoch:', epoch, 'Loss: ', loss_test[epoch])
+    
+epochs = np.arange(500)
+
+plt.plot(epochs, loss_test, label = 'Loss_test')
+plt.xlabel('Epoch')
+plt.ylabel('Loss')
+plt.xscale('log')
+plt.yscale('log')
+plt.legend()
+plt.show()
+
+#Plot prediction images
+if os.path.exists('BestModelDM_HI_CNN_Unet.pt'):
+    model.load_state_dict(torch.load('BestModelDM_HI_UNet.pt'))
+    
+plt.subplot(821)
+#DM_matrix_test.unsqueeze_(0)
+print(DM_matrix_test[1].unsqueeze_(0).shape)
+
+hydrogen_pred1 = model(DM_matrix_test[1].unsqueeze_(0)).detach().numpy() 
+maximum = np.max([np.max(hydrogen_pred1), torch.max(HI_matrix_test[1])])
+print(HI_matrix_test[1])
+print(hydrogen_pred1)
+
+plt.imshow(hydrogen_pred1[0,0,:,:], vmin = 0, vmax = maximum)
+plt.colorbar()
+plt.title('Prediction Map of HI (901)')
+
+
+plt.subplot(822)
+plt.imshow(HI_matrix_test[1][0,:,:], vmin = 0, vmax = maximum)
+plt.colorbar()
+plt.title('True Map of HI (901)')
+
+plt.subplots_adjust(bottom=10, right=1.5, top=17)
+
+loss1 = criterion(torch.tensor(hydrogen_pred1), torch.tensor(HI_matrix_test[1]))
+print('Error 901: ', loss1.detach().numpy())
