@@ -174,6 +174,7 @@ if os.path.exists('BestModelDM_HI_New_2.pt'):
 for epoch in range(num_epochs):
     partial_loss = 0.0
     partial_loss_valid = 0.0
+    partial_loss_test = 0.0
     count = 0
     
     #### Decrease Loss ####
