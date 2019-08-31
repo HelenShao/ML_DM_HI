@@ -181,22 +181,16 @@ class Model(nn.Module): #Define main model
 
     def forward(self, x):
         in_size = x.size(0)
-        #x = self.Conv5x5(x)
-        #x = F.relu(x)
         x = self.incept1(x)
         x = F.relu(x)
-        #x = self.Conv5x5_2(x)
-        #x = F.relu(x)
-        #x = self.incept2(x)
-        #x = F.relu(x)
-        #x = self.Conv5x5_3(x)
-        #x = F.relu(x)
-        #x = self.incept3(x)
-        #x = F.relu(x)
+        x = self.incept2(x)
+        x = F.relu(x)
+        x = self.incept3(x)
+        x = F.relu(x)
         x = self.Conv1x1(x)
         return(x)
 
-
+################################# Training ###################################
 # Call the model for training
 
 model = Model()
