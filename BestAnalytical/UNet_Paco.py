@@ -31,24 +31,30 @@ f_best_model = 'BestModelDM_HI_log.pt'
 HI_esti = np.load('HI_estimation.npy').astype('float32')
 HI_esti = HI_esti.reshape(maps, 32, 32)
 
-# Load HI (True) maps and take mean & std
+# Load HI and DM (True) maps and take mean & std
+DM_True = np.zeros((maps, 32, 32), dtype=np.float32)
 HI_True = np.zeros((maps, 32, 32), dtype=np.float32)
 for i in range(maps):
+    DM_True[i] = np.load('%s/DM_new_map_%d.npy'%(root,i))
     HI_True[i] = np.load('%s/HI_new_map_%d.npy'%(root,i))
       
 # Take the log
+DM_True = transform(DM_True)
 HI_True = transform(HI_True)
 HI_esti = transform(HI_esti)
   
 # Mean and std values
+DM_True_mean, DM_True_std = np.mean(DM_True), np.std(DM_True)
 HI_True_mean, HI_True_std = np.mean(HI_True), np.std(HI_True)
 HI_esti_mean, HI_esti_std = np.mean(HI_esti), np.std(HI_esti)
 
 # Normalize Matrices
+DM_True = (DM_True - DM_True_mean)/DM_True_std
 HI_True = (HI_True - HI_True_mean)/HI_True_std
 HI_esti = (HI_esti - HI_esti_mean)/HI_esti_std
 
 # Convert to torch tensor
+DM_True = torch.tensor(DM_True, dtype=torch.float)
 HI_True = torch.tensor(HI_True, dtype=torch.float)
 HI_esti = torch.tensor(HI_esti, dtype=torch.float)
 
@@ -71,6 +77,7 @@ class make_Dataset(Dataset):
         else:                raise Exception('Wrong name!')
         
         self.size      = size
+        self.DM_True = np.zeros((size, 32, 32), dtype=np.float32)
         self.HI_True = np.zeros((size, 32, 32), dtype=np.float32)
         self.HI_esti = np.zeros((size, 32, 32), dtype=np.float32)
         
@@ -83,18 +90,22 @@ class make_Dataset(Dataset):
             j = indexes[i+offset]
 
             # load maps
+            self.DM_True[i] = np.load('%s/DM_new_map_%d.npy'%(root,j))
             self.HI_True[i] = np.load('%s/HI_new_map_%d.npy'%(root,j))
             self.HI_esti[i] = HI_esti[j].reshape(32,32)
             
             # Transform data
+            self.DM_True[i] = transform(self.DM_True[i])
             self.HI_True[i] = transform(self.HI_True[i])
             self.HI_esti[i] = transform(self.HI_esti[i])
             
             # Normalize: (x-mean)/(std)
+            self.DM_True[i] = (self.DM_True[i] - DM_True_mean) / DM_True_std
             self.HI_True[i] = (self.HI_True[i] - HI_True_mean) / HI_True_std
             self.HI_esti[i] = (self.HI_esti[i] - HI_esti_mean) / HI_esti_std
         
         # Convert into torch tensor
+        self.DM_True = torch.tensor(self.DM_True, dtype=torch.float)
         self.HI_True = torch.tensor(self.HI_True, dtype=torch.float)
         self.HI_esti = torch.tensor(self.HI_esti, dtype=torch.float)
             
@@ -102,7 +113,7 @@ class make_Dataset(Dataset):
         return self.size
 
     def __getitem__(self, idx):
-        return self.HI_True[idx], self.HI_esti[idx]
+        return self.DM_True[idx], self.HI_True[idx], self.HI_esti[idx]
 
 train_Dataset = make_Dataset('train', seed)
 train_loader  = DataLoader(dataset=train_Dataset, batch_size=batch_size, 
@@ -132,7 +143,7 @@ class UNet(nn.Module):
     def __init__(self):
         super(UNet,self).__init__()
                 
-        self.dconv_down1 = double_conv(1, 64)
+        self.dconv_down1 = double_conv(2, 64)
         self.dconv_down2 = double_conv(64, 128)
         self.dconv_down3 = double_conv(128, 256)
         self.dconv_down4 = double_conv(256, 512)        
@@ -146,7 +157,7 @@ class UNet(nn.Module):
         self.dconv_up2 = double_conv(128 + 256, 128)
         self.dconv_up1 = double_conv(128 + 64, 64)
         
-        self.conv_last = nn.Conv2d(65, 1, 1)    
+        self.conv_last = nn.Conv2d(66, 1, 1)    
         #Change to 65 input channels because we add one more channel which is the orignal input image
         
         
@@ -190,31 +201,25 @@ model = UNet()
 criterion = nn.MSELoss()  
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-# Train Model
-Loss_total = np.zeros(num_epochs) #Record loss for plotting
-loss_valid = np.zeros(num_epochs) #Record Validation loss for saving
-loss_test  = np.zeros(num_epochs)
-best_model = 9e7
-
 # load best-model
+best_model = 9e7
 if os.path.exists('BestModel_UNET_A.pt'):
     model.load_state_dict(torch.load('BestModel_UNet_A.pt'))
 
+# main loop
 for epoch in range(num_epochs):
-    partial_loss = 0.0
-    partial_loss_valid = 0.0
-    partial_loss_test = 0.0
-    count = 0
-    for i, (HI_esti, HI_True) in enumerate(train_loader):
-        HI_True.unsqueeze_(1) #Add extra dimension
-        HI_esti.unsqueeze_(1) #Add extra dimension
+
+    # TRAIN
+    model.train()
+    count, loss_train = 0, 0.0
+    for DM_True, HI_True, HI_esti in train_loader:
+        DM_True.unsqueeze_(1);  HI_True.unsqueeze_(1);  HI_esti.unsqueeze_(1)
+        HI_input = torch.cat([DM_True, HI_esti], dim=1)
         
         # Forward Pass
-        model.train()
-        HI_pred = model(HI_esti)
-        
-        loss = criterion(HI_pred, HI_True)   
-        partial_loss += loss.detach().numpy()
+        HI_pred = model(HI_input)
+        loss    = criterion(HI_pred, HI_True)   
+        loss_train += loss.detach().numpy()
         
         # Backward Prop
         optimizer.zero_grad()
@@ -222,42 +227,41 @@ for epoch in range(num_epochs):
         optimizer.step()
         
         count += 1
-    partial_loss = partial_loss / count
+    loss_train /= count
     
-    count2 = 0
-    for i, (HI_esti, HI_True) in enumerate(valid_loader):
-        model.eval()  #Set model into eval mode to stop back prop
-        HI_True.unsqueeze_(1)
-        HI_esti.unsqueeze_(1)
+    # VALID
+    model.eval() 
+    count2, loss_valid = 0, 0.0
+    for DM_True, HI_True, HI_esti in valid_loader:
+        DM_True.unsqueeze_(1);  HI_True.unsqueeze_(1);  HI_esti.unsqueeze_(1)
+        HI_input = torch.cat([DM_True, HI_esti], dim=1)
 
-        HI_validation = model(HI_esti)
-        error_valid = criterion(HI_validation, HI_True)   
-        partial_loss_valid += error_valid.detach().numpy()
+        HI_valid = model(HI_input)
+        error    = criterion(HI_valid, HI_True)   
+        loss_valid += error.detach().numpy()
         count2 += 1
-    partial_loss_valid = partial_loss_valid / count2
+    loss_valid /= count2
      
-    count3 = 0
-    for i, (HI_esti, HI_True) in enumerate(test_loader):
-        model.eval()  #Set model into eval mode to stop back prop
-        HI_True.unsqueeze_(1)
-        HI_esti.unsqueeze_(1)
+    # TEST
+    model.eval() 
+    count3, loss_test = 0, 0.0
+    for DM_True, HI_True, HI_esti in test_loader:
+        DM_True.unsqueeze_(1);  HI_True.unsqueeze_(1);  HI_esti.unsqueeze_(1)
+        HI_input = torch.cat([DM_True, HI_esti], dim=1)
         
-        HI_test = model(HI_esti)
-        error_test = criterion(HI_test, HI_True)   #Loss for validation set
-        partial_loss_test += error_valid.detach().numpy()
+        HI_test  = model(HI_input)
+        error    = criterion(HI_test, HI_True) 
+        loss_test += error.detach().numpy()
         count3 += 1
-    partial_loss_test = partial_loss_test / count2
+    loss_test /= count3
     
     # Save Best Model 
-    if partial_loss_valid<best_model:
-        best_model = loss_valid[epoch]
+    if loss_valid<best_model:
+        best_model = loss_valid
         torch.save(model.state_dict(), 'BestModel_UNet_A.pt')
 
     # Print loss for both training and validation sets
-    Loss_total[epoch] = partial_loss
-    loss_valid[epoch] = partial_loss_valid
-    loss_test[epoch] = partial_loss_test
-    print('Epoch:', epoch,  'Train: ', Loss_total[epoch], ' Valid:', loss_valid[epoch], 'Test:', loss_test[epoch])
+    print('%03d %.4e %.4e %.4e'%(epoch, loss_train, loss_valid, loss_test))
     
 
 ################### Loss Function #######################
