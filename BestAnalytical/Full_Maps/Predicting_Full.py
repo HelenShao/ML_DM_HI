@@ -187,31 +187,43 @@ DM_Full_True = (DM_Full_True - DM_Full_True_mean)/DM_Full_True_std
 HI_Full_True = (HI_Full_True - HI_Full_True_mean)/HI_Full_True_std
 
 #Create Plots and Save as PDF
-f = plt.figure()
+fig = plt.subplots()
 
 plt.subplot(421)
 plt.imshow(DM_Full_True)
-plt.colorbar()
+cbar = plt.colorbar()
+cbar.set_label(r"${\rm log}(1+\delta_{\rm DM})$",fontsize=12,labelpad=0)
+plt.xlabel(r'$X\/[h^{-1}\/{\rm Mpc}]$',fontsize=12)
+plt.ylabel(r'$Y\/[h^{-1}\/{\rm Mpc}]$',fontsize=12)
 plt.title('True Map of Dark Matter')
 
 plt.subplot(422)
 plt.imshow(HI_Full_True)
-plt.colorbar()
+cbar = plt.colorbar()
+cbar.set_label(r"${\rm log}(1+\delta_{\rm DM})$",fontsize=12,labelpad=0)
+plt.xlabel(r'$X\/[h^{-1}\/{\rm Mpc}]$',fontsize=12)
+plt.ylabel(r'$Y\/[h^{-1}\/{\rm Mpc}]$',fontsize=12)
 plt.title('True Map of HI')
 
 plt.subplot(423)
 HI_estimated_full = np.load('HI_estimated_full.npy').astype('float32')
 plt.imshow(HI_estimated_full)
-plt.colorbar()
+cbar = plt.colorbar()
+cbar.set_label(r"${\rm log}(1+\delta_{\rm DM})$",fontsize=12,labelpad=0)
+plt.xlabel(r'$X\/[h^{-1}\/{\rm Mpc}]$',fontsize=12)
+plt.ylabel(r'$Y\/[h^{-1}\/{\rm Mpc}]$',fontsize=12)
 plt.title('Analytical Estimation of HI')
 
 plt.subplot(424)
 plt.imshow(HI_Pred_Full)
-plt.colorbar()
-#colorbar.set_label(r"${\rm log}(1+\delta_{\rm DM})$",fontsize=12,labelpad=0)
+cbar = plt.colorbar()
+cbar.set_label(r"${\rm log}(1+\delta_{\rm DM})$",fontsize=12,labelpad=0)
+#plt.xlabel(r"${\rm log}(1+\delta_{\rm DM})$",fontsize=12,labelpad=0)
+plt.xlabel(r'$X\/[h^{-1}\/{\rm Mpc}]$',fontsize=12)
+plt.ylabel(r'$Y\/[h^{-1}\/{\rm Mpc}]$',fontsize=12)
 plt.title('Predicted HI')
 
 plt.subplots_adjust(bottom=12, right=1.5, top=15)
 plt.show()
 
-f.savefig("Full_1.pdf")
+fig.savefig("Full_1.pdf")
