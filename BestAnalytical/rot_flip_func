@@ -4,7 +4,13 @@ root = '../maps'
 
 # Function to create Rotations and Flip Configurations (8 total)
 
-def rot_and_flip(input_data, maps, l, w):
+def rot_and_flip(input_data, maps, l, w):   
+
+''' 
+    input_data : name of the data (str)
+    maps       : number of maps 
+    l and w    : length and width of each map
+'''
     #create containers for each configuration
     data_0   = np.zeros((maps, l, w), dtype = np.float32)
     data_90  = np.zeros((maps, l, w), dtype = np.float32)
