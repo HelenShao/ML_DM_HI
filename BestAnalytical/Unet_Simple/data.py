@@ -12,7 +12,7 @@ def transform(x):
 
 ###################################################################
 # This function reads all data, normalizes it, and adds Gaussian Noise
-def read_all_data(maps, root, normalize=True, noise=False):
+def read_all_data(maps, root, normalize=True, noise=True):
 
     # Load estimated HI (input) maps
     HI_esti = np.load('HI_esti_data.npy')
