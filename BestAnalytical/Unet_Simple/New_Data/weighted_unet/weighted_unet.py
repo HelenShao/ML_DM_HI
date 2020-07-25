@@ -26,7 +26,7 @@ def read_all_data(maps, normalize=True, noise=False):
     DM_True = np.load('DM_maps_new.npy')
     HI_True = np.load('HI_maps_new.npy')
     
-    # root it twice
+    # square root it twice
     DM_True = transform(DM_True)
     HI_True = transform(HI_True)
   
@@ -159,13 +159,13 @@ class UNet2(nn.Module):
 ################################ INPUT #######################################
 
 maps = 98304
-seed = 1   #random seed to split maps in train, valid and test sets
+seed = 14   #random seed to split maps in train, valid and test sets
 
 # Define NN hyperparameters
 num_epochs    = 500
 batch_size    = 64
 learning_rate = 0.0001
-weight_decay  = 1e-7
+weight_decay  = 1e-4
 
 f_best_model = 'UNet_Weighted.pt'
 
@@ -196,9 +196,6 @@ def weighted_sampler(dataset):
     
     for i in range(len(dataset)):
         sum_array[i] = torch.sum(sum(dataset[i]))**2  # [sum(sum(HI, DM))]^2 
-        
-    #create list of weights
-    #weights = [sum_array[x]/len(dataset) for x in range(len(dataset))]
     
     #Scale weights
     weights = sum_array / torch.sum(sum_array)
@@ -243,7 +240,7 @@ Loss_valid = np.zeros(500)
 Loss_test  = np.zeros(500)
 
 ############## LOAD BEST-MODEL ###############
-#best_loss = 1.6e-1
+best_loss = 1.6e9
 if os.path.exists(f_best_model):
     model.load_state_dict(torch.load(f_best_model))
 
@@ -270,13 +267,11 @@ for epoch in range(num_epochs):
     count, loss_train = 0, 0.0
     for input, HI_True in train_loader:        
         # Forward Pass
-        #input = (input+torch.randn(32, 32))*((torch.mean(input)+torch.std(input))*0.5)
         input = input.to(device)  #train
         HI_True = HI_True.to(device)
         HI_pred = model(input)
         loss    = criterion(HI_pred, HI_True)
         loss_train += loss.cpu().detach().numpy()
-        #print(torch.mean(input_noise), torch.std(input_noise))
         
         # Backward Prop
         optimizer.zero_grad()
@@ -325,7 +320,7 @@ for epoch in range(num_epochs):
 
 ################### Loss Function #######################
 # Plot loss as a function of epochs
-'''import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 epochs = np.arange(500)
 plt.plot(epochs, Loss_train, label = 'Loss_train')
 plt.plot(epochs, Loss_valid, label= 'Loss_Valid')
@@ -335,4 +330,4 @@ plt.ylabel('Loss')
 plt.xscale('log')
 plt.yscale('log')
 plt.legend()
-plt.show()'''
+plt.show()
